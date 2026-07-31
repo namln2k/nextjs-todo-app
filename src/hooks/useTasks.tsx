@@ -70,6 +70,8 @@ export function TasksProvider({ children }: { children: ReactNode }) {
         });
 
         if (response.status === 401 || response.status === 403) {
+          sessionStorage.removeItem('idToken');
+          router.replace('/login');
           return;
         }
 
