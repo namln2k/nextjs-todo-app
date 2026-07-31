@@ -1,5 +1,6 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import {
   createContext,
   useCallback,
@@ -9,7 +10,6 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { useRouter } from 'next/navigation';
 
 export interface Task {
   taskId: string;
@@ -23,6 +23,7 @@ interface TasksContextValue {
   isLoading: boolean;
   error: string | null;
   refetch: () => Promise<void>;
+  toggleTaskCompletion: (taskId: string) => Promise<void>;
 }
 
 const TasksContext = createContext<TasksContextValue | null>(null);
@@ -44,21 +45,21 @@ export function TasksProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const apiUrl = process.env.NEXT_PUBLIC_API_GATEWAY_URL;
+  if (!apiUrl) {
+    throw new Error('The task API is not configured.');
+  }
+
   const loadTasks = useCallback(
     async (signal?: AbortSignal) => {
       setIsLoading(true);
       setError(null);
 
       try {
-        const accessToken = sessionStorage.getItem('idToken');
+        const accessToken = sessionStorage.getItem('accessToken');
         if (!accessToken) {
           router.replace('/login');
           return;
-        }
-
-        const apiUrl = process.env.NEXT_PUBLIC_API_GATEWAY_URL;
-        if (!apiUrl) {
-          throw new Error('The task API is not configured.');
         }
 
         const response = await fetch(`${apiUrl.replace(/\/$/, '')}/tasks`, {
@@ -70,7 +71,8 @@ export function TasksProvider({ children }: { children: ReactNode }) {
         });
 
         if (response.status === 401 || response.status === 403) {
-          sessionStorage.removeItem('idToken');
+          alert('Your session has ended. Please re-login to continue.');
+          sessionStorage.removeItem('accessToken');
           router.replace('/login');
           return;
         }
@@ -93,7 +95,51 @@ export function TasksProvider({ children }: { children: ReactNode }) {
         if (!signal?.aborted) setIsLoading(false);
       }
     },
-    [router],
+    [router, apiUrl],
+  );
+
+  const toggleTaskCompletion = useCallback(
+    async (taskId: string) => {
+      try {
+        const accessToken = sessionStorage.getItem('accessToken');
+        if (!accessToken) {
+          router.replace('/login');
+          return;
+        }
+
+        const response = await fetch(
+          `${apiUrl.replace(/\/$/, '')}/tasks/toggleCompletion`,
+          {
+            method: 'PATCH',
+            headers: {
+              Accept: 'application/json',
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${accessToken}`,
+            },
+            body: JSON.stringify({
+              id: taskId,
+            }),
+          },
+        );
+
+        if (response.status === 401 || response.status === 403) {
+          alert('Your session has ended. Please re-login to continue.');
+          sessionStorage.removeItem('accessToken');
+          router.replace('/login');
+          return;
+        }
+
+        if (!response.ok) {
+          throw new Error(`Unable to load tasks (${response.status}).`);
+        }
+
+        await loadTasks();
+
+      } catch (error) {
+        setError(getErrorMessage(error));
+      }
+    },
+    [router, apiUrl, loadTasks],
   );
 
   useEffect(() => {
@@ -114,8 +160,9 @@ export function TasksProvider({ children }: { children: ReactNode }) {
       isLoading,
       error,
       refetch: loadTasks,
+      toggleTaskCompletion,
     }),
-    [tasks, isLoading, error, loadTasks],
+    [tasks, isLoading, error, loadTasks, toggleTaskCompletion],
   );
 
   return (

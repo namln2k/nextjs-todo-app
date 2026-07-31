@@ -3,7 +3,7 @@
 import useTasks, { TasksProvider } from '@/hooks/useTasks';
 
 function TasksList() {
-  const { tasks, isLoading, error, refetch } = useTasks();
+  const { tasks, isLoading, error, refetch, toggleTaskCompletion } = useTasks();
 
   if (isLoading) {
     return (
@@ -71,11 +71,12 @@ function TasksList() {
             <div className='flex items-start justify-between gap-4'>
               <h3 className='font-semibold text-slate-950'>{task.title}</h3>
               <span
-                className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${
+                className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium cursor-pointer ${
                   task.completed
                     ? 'bg-emerald-100 text-emerald-800'
                     : 'bg-amber-100 text-amber-800'
                 }`}
+                onClick={() => toggleTaskCompletion(task.taskId)}
               >
                 {task.completed ? 'Completed' : 'Incomplete'}
               </span>

@@ -22,7 +22,7 @@ export default function useAuth() {
       const command = new InitiateAuthCommand(params);
       const { AuthenticationResult } = await cognitoClient.send(command);
       if (AuthenticationResult) {
-        sessionStorage.setItem('idToken', AuthenticationResult.IdToken || '');
+        sessionStorage.setItem('accessToken', AuthenticationResult.accessToken || '');
         sessionStorage.setItem(
           'accessToken',
           AuthenticationResult.AccessToken || '',
